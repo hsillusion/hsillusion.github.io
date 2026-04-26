@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>无限暖暖·染色数据查询 </title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #1e2a3e;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 28px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .header {
+            padding: 24px 28px 16px;
+            border-bottom: 1px solid #e9edf2;
+        }
+        .header h1 {
+            font-size: 1.6rem;
+            margin: 0 0 6px;
+            background: linear-gradient(135deg, #3b3f5c, #6c5b7b);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .header p {
+            color: #5b6e8c;
+            margin: 0;
+            font-size: 0.9rem;
+        }
+        .status-bar {
+            background: #f8fafd;
+            margin: 20px 28px;
+            padding: 12px 24px;
+            border-radius: 20px;
+            border: 1px solid #e2e8f0;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+        .file-badge {
+            background: #6c5b7b;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        /* 提示条 */
+        .notice-bar {
+            margin: 0 28px 16px;
+            background: #fff8e7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 12px;
+            padding: 12px 20px;
+            font-size: 0.9rem;
+            color: #92400e;
+        }
+        .query-panel {
+            margin: 0 28px 24px;
+            background: white;
+            border-radius: 24px;
+            border: 1px solid #eef2f6;
+            padding: 20px 24px;
+        }
+        .filter-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            margin-bottom: 24px;
+        }
+        .filter-item {
+            flex: 1 1 180px;
+        }
+        .filter-item label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #4f6f8f;
+            margin-bottom: 6px;
+            display: block;
+        }
+        .filter-item input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 14px;
+            border: 1px solid #dce5ec;
+            font-size: 0.9rem;
+            outline: none;
+        }
+        .filter-item input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 2px rgba(139,92,246,0.2);
+        }
+        .action-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-primary {
+            background: #6c5b7b;
+            color: white;
+        }
+        .btn-primary:hover {
+            background: #5a4a6b;
+        }
+        .btn-secondary {
+            background: #eef2ff;
+            color: #4f46e5;
+        }
+        .btn-secondary:hover {
+            background: #e0e7ff;
+        }
+        .table-wrapper {
+            margin: 0 28px 32px;
+            border-radius: 20px;
+            border: 1px solid #edf2f7;
+            overflow-x: auto;
+            background: white;
+        }
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 800px;
+        }
+        .data-table th {
+            background: #f8fafc;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .data-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #f0f2f5;
+            word-break: break-word;
+        }
+        .data-table tr:hover td {
+            background-color: #fef9e6;
+        }
+        .empty-message {
+            text-align: center;
+            padding: 48px 20px;
+            color: #7f8c9a;
+        }
+        footer {
+            padding: 12px 28px 24px;
+            font-size: 0.7rem;
+            color: #8ba0b5;
+            text-align: center;
+            border-top: 1px solid #eff3f8;
+        }
+        @media (max-width: 680px) {
+            .status-bar { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>✨ 无限暖暖 · 染色数据查询</h1>
+        <p>自动读取 ·后台日更</p>
+    </div>
+
+    <!-- 状态栏 -->
+    <div class="status-bar">
+        <span class="file-badge" id="statusBadge">⏳ 正在加载 data.xlsx ...</span>
+        <span id="statusDetail" style="color:#4a627a; font-size:0.8rem;"></span>
+    </div>
+
+    <!-- 固定提示条 -->
+    <div class="notice-bar">
+        💬 目前表格正在从后往前完善，大部分套装仅有0进/一进，1.11-2.4已更新完毕，2.5服装已录入
+    </div>
+
+    <!-- 搜索面板 -->
+    <div class="query-panel">
+        <div class="filter-grid">
+            <div class="filter-item"><label>🔠 版本号 </label><input type="text" id="filterA" placeholder="常驻 / 1.0"></div>
+            <div class="filter-item"><label>⭐ 星级 </label><input type="text" id="filterB" placeholder="5.0 / 4.0"></div>
+            <div class="filter-item"><label>📦 套装名 </label><input type="text" id="filterC" placeholder="输入套装名"></div>
+            <div class="filter-item"><label>🌸 花名 </label><input type="text" id="filterD" placeholder="蝴蝶套 / 精灵套"></div>
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-primary" id="searchBtn">🔍 查询匹配</button>
+            <button class="btn btn-secondary" id="resetBtn">🔄 重置条件 & 显示全部</button>
+        </div>
+    </div>
+
+    <!-- 表格展示区 -->
+    <div class="table-wrapper">
+        <div id="tableContainer">
+            <div class="empty-message">📎 正在读取 data.xlsx ...</div>
+        </div>
+    </div>
+    <footer>
+        💡 模糊匹配不区分大小写（仅 A~D 列）。
+    </footer>
+</div>
+
+<script>
+    (function() {
+        // ---------- 配置 ----------
+        const REQUIRED_COLS = 10;                  // 固定读取 A~J 列
+        const AUTO_LOAD_FILE = 'data.xlsx';        // 自动加载的文件名
+        const HEADER_ROW_INDEX = 2;                // 表头所在行索引（第三行）
+        const DATA_START_ROW = 3;                  // 数据开始行索引（第四行）
+
+        // DOM 元素
+        const statusBadge = document.getElementById('statusBadge');
+        const statusDetail = document.getElementById('statusDetail');
+        const filterA = document.getElementById('filterA');
+        const filterB = document.getElementById('filterB');
+        const filterC = document.getElementById('filterC');
+        const filterD = document.getElementById('filterD');
+        const searchBtn = document.getElementById('searchBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const tableContainer = document.getElementById('tableContainer');
+
+        // 数据状态
+        let currentHeaders = [];
+        let currentDataRows = [];
+        let isDataLoaded = false;
+
+        // ---------- 辅助函数 ----------
+        function getDefaultColumnName(index) {
+            return String.fromCharCode(65 + index); // A, B, C...
+        }
+
+        // 渲染表格
+        function renderTable(headers, dataRows) {
+            if (!headers || headers.length === 0) {
+                tableContainer.innerHTML = '<div class="empty-message">⚠️ 表格结构无效</div>';
+                return;
+            }
+            if (!dataRows || dataRows.length === 0) {
+                tableContainer.innerHTML = '<div class="empty-message">📭 未找到匹配的行</div>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'data-table';
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            for (let i = 0; i < headers.length; i++) {
+                const th = document.createElement('th');
+                th.textContent = headers[i] || getDefaultColumnName(i);
+                headerRow.appendChild(th);
+            }
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            const tbody = document.createElement('tbody');
+            for (const row of dataRows) {
+                const tr = document.createElement('tr');
+                for (let col = 0; col < headers.length; col++) {
+                    const td = document.createElement('td');
+                    let val = (col < row.length && row[col] !== undefined && row[col] !== null) ? row[col] : '';
+                    td.textContent = String(val) || '—';
+                    tr.appendChild(td);
+                }
+                tbody.appendChild(tr);
+            }
+            table.appendChild(tbody);
+            tableContainer.innerHTML = '';
+            tableContainer.appendChild(table);
+
+            const statDiv = document.createElement('div');
+            statDiv.style.cssText = 'padding:10px 16px 0 16px; font-size:0.75rem; color:#4b6a8b;';
+            statDiv.innerHTML = `✅ 共匹配 <strong style="color:#6c5b7b;">${dataRows.length}</strong> 行数据`;
+            tableContainer.insertBefore(statDiv, tableContainer.firstChild);
+        }
+
+        function showEmptyMessage(msg) {
+            tableContainer.innerHTML = `<div class="empty-message">${msg}</div>`;
+        }
+
+        // 处理合并单元格
+        function expandMerges(worksheet, rawData) {
+            const merges = worksheet['!merges'] || [];
+            const filled = rawData.map(row => [...row]);
+            for (const merge of merges) {
+                const s = merge.s, e = merge.e;
+                let master = '';
+                if (s.r < filled.length && s.c < filled[s.r].length) master = filled[s.r][s.c];
+                for (let r = s.r; r <= e.r; r++) {
+                    if (!filled[r]) filled[r] = [];
+                    for (let c = s.c; c <= e.c; c++) filled[r][c] = master;
+                }
+            }
+            return filled;
+        }
+
+        // 解析 Excel
+        async function loadExcelFromFile(fileName) {
+            try {
+                const response = await fetch(fileName);
+                if (!response.ok) {
+                    throw new Error(`无法读取文件 "${fileName}" (HTTP ${response.status})。请确保文件与 HTML 在同一目录。`);
+                }
+                const arrayBuffer = await response.arrayBuffer();
+                const data = new Uint8Array(arrayBuffer);
+                const wb = XLSX.read(data, { type: 'array', defval: "" });
+                const sheet = wb.Sheets[wb.SheetNames[0]];
+                const raw = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+                if (!raw || raw.length === 0) throw new Error("Excel 文件中无数据");
+
+                // 处理合并单元格
+                const filled = expandMerges(sheet, raw);
+
+                // 检查行数
+                if (filled.length <= HEADER_ROW_INDEX) {
+                    throw new Error(`Excel 行数不足，至少需要 ${HEADER_ROW_INDEX + 1} 行（第三行作为表头）`);
+                }
+
+                // 提取表头（第三行）
+                const rawHeader = filled[HEADER_ROW_INDEX] || [];
+                const headers = [];
+                for (let i = 0; i < REQUIRED_COLS; i++) {
+                    let h = (i < rawHeader.length && rawHeader[i] != null && rawHeader[i] !== '') ? String(rawHeader[i]).trim() : '';
+                    if (h === '') h = getDefaultColumnName(i);
+                    headers.push(h);
+                }
+
+                // 提取数据行（从第四行开始）
+                const rows = [];
+                for (let r = DATA_START_ROW; r < filled.length; r++) {
+                    const row = filled[r];
+                    const newRow = [];
+                    let hasData = false;
+                    for (let c = 0; c < REQUIRED_COLS; c++) {
+                        let val = (c < row.length && row[c] != null) ? row[c] : '';
+                        if (val !== '') hasData = true;
+                        newRow.push(val);
+                    }
+                    if (hasData) rows.push(newRow);
+                }
+
+                return { headers, rows, fileSize: arrayBuffer.byteLength };
+            } catch (err) {
+                throw err;
+            }
+        }
+
+        // 自动加载
+        async function autoLoadData() {
+            try {
+                statusBadge.textContent = '⏳ 加载中...';
+                statusDetail.textContent = `正在读取 ${AUTO_LOAD_FILE}`;
+
+                const { headers, rows, fileSize } = await loadExcelFromFile(AUTO_LOAD_FILE);
+                
+                if (rows.length === 0) throw new Error("文件中没有有效数据行（从第四行开始）");
+
+                currentHeaders = headers;
+                currentDataRows = rows;
+                isDataLoaded = true;
+
+                filterA.value = filterB.value = filterC.value = filterD.value = '';
+                renderTable(currentHeaders, currentDataRows);
+
+                const sizeKB = (fileSize / 1024).toFixed(1);
+                statusBadge.textContent = `✅ 已加载 ${AUTO_LOAD_FILE}`;
+                statusDetail.textContent = `${rows.length} 行数据 · ${sizeKB} KB · 表头取自第3行`;
+
+            } catch (err) {
+                console.error('自动加载失败:', err);
+                statusBadge.textContent = '❌ 加载失败';
+                statusDetail.textContent = err.message;
+                showEmptyMessage(`⚠️ 无法加载数据：${err.message}<br><br>请将 Excel 文件命名为 <code>${AUTO_LOAD_FILE}</code> 并与本 HTML 放在同一文件夹。`);
+                isDataLoaded = false;
+            }
+        }
+
+        // 搜索
+        function performSearch() {
+            if (!isDataLoaded) {
+                alert("数据尚未加载完成");
+                return;
+            }
+            const kwA = filterA.value.trim().toLowerCase();
+            const kwB = filterB.value.trim().toLowerCase();
+            const kwC = filterC.value.trim().toLowerCase();
+            const kwD = filterD.value.trim().toLowerCase();
+
+            if (!kwA && !kwB && !kwC && !kwD) {
+                renderTable(currentHeaders, currentDataRows);
+                return;
+            }
+
+            const filtered = currentDataRows.filter(row => {
+                const get = idx => (idx < row.length && row[idx] != null) ? String(row[idx]).toLowerCase() : '';
+                if (kwA && !get(0).includes(kwA)) return false;
+                if (kwB && !get(1).includes(kwB)) return false;
+                if (kwC && !get(2).includes(kwC)) return false;
+                if (kwD && !get(3).includes(kwD)) return false;
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                tableContainer.innerHTML = `<div class="empty-message">🔍 未找到匹配的行</div>`;
+            } else {
+                renderTable(currentHeaders, filtered);
+            }
+        }
+
+        function resetAndShowAll() {
+            if (!isDataLoaded) return;
+            filterA.value = filterB.value = filterC.value = filterD.value = '';
+            renderTable(currentHeaders, currentDataRows);
+        }
+
+        // 初始化
+        async function init() {
+            await autoLoadData();
+
+            searchBtn.onclick = performSearch;
+            resetBtn.onclick = resetAndShowAll;
+            [filterA, filterB, filterC, filterD].forEach(i => i.onkeypress = e => {
+                if (e.key === 'Enter') performSearch();
+            });
+        }
+
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+        else init();
+    })();
+</script>
+</body>
+</html>
